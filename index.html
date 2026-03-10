@@ -182,21 +182,12 @@ input:disabled,select:disabled,textarea:disabled{opacity:0.5;cursor:not-allowed;
 /* COMPENSATION VALUES */
 .compensation-section{margin-bottom:1.5rem;}
 .compensation-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.comp-drone-card{background:var(--bg2);border:1px solid var(--border);padding:14px;position:relative;}
-.comp-drone-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
-.comp-drone-id-input{font-family:'Share Tech Mono',monospace;font-size:0.8rem;color:var(--accent);background:transparent;border:none;border-bottom:1px solid var(--border);padding:2px 6px;width:100%;outline:none;transition:border-color 0.2s;letter-spacing:1px;}
-.comp-drone-id-input:focus{border-bottom-color:var(--accent);}
-.comp-drone-id-input::placeholder{color:var(--text2);font-size:0.72rem;letter-spacing:0;}
-.comp-drone-id-input:disabled{opacity:0.6;cursor:not-allowed;}
-.comp-remove-btn{background:none;border:none;color:var(--text2);cursor:pointer;font-size:1rem;line-height:1;padding:2px 4px;flex-shrink:0;transition:color 0.2s;}
-.comp-remove-btn:hover{color:var(--danger);}
+.comp-drone-card{background:var(--bg2);border:1px solid var(--border);padding:14px;}
+.comp-drone-header{font-family:'Share Tech Mono',monospace;font-size:0.72rem;color:var(--accent);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.comp-drone-header::before{content:'';width:8px;height:8px;background:var(--accent);border-radius:50%;display:inline-block;}
 .comp-textarea{min-height:90px;font-family:'Share Tech Mono',monospace;font-size:0.8rem;resize:vertical;line-height:1.5;color:var(--text);}
 .comp-textarea:focus{border-color:var(--accent);}
 .comp-textarea::placeholder{color:var(--text2);font-size:0.75rem;}
-.comp-add-row{grid-column:1/-1;display:flex;justify-content:center;padding:6px 0;}
-.comp-add-btn{font-family:'Share Tech Mono',monospace;font-size:0.75rem;letter-spacing:1px;color:var(--accent);background:transparent;border:1px dashed rgba(0,212,255,0.3);padding:8px 20px;cursor:pointer;transition:all 0.2s;width:100%;}
-.comp-add-btn:hover{border-color:var(--accent);background:rgba(0,212,255,0.05);}
-.comp-empty{grid-column:1/-1;color:var(--text2);font-size:0.85rem;padding:12px 0;font-family:'Share Tech Mono',monospace;}
 
 /* COMMENTS */
 .comments-section{margin-top:1.5rem;}
@@ -632,7 +623,6 @@ function createCard(p) {
 window.openNewProject = () => {
   currentProjectId = null;
   window._tempComments = [];
-  _compEntries = [{droneId:'', values:''}]; // default 1 drone
   document.getElementById('modal-title').textContent='NUEVO PROYECTO';
   renderModalForm(null);
   document.getElementById('project-modal').classList.add('show');
@@ -643,7 +633,6 @@ window.openProjectView = (id) => {
   window._tempComments = [];
   const p=projects.find(x=>x.id===id);
   if(!p) return;
-  initCompEntries(p);
   document.getElementById('modal-title').textContent=p.delivered?`PROYECTO: ${p.name}`:`EDITAR: ${p.name}`;
   renderModalForm(p);
   document.getElementById('project-modal').classList.add('show');
@@ -677,9 +666,16 @@ function renderModalForm(project) {
       </div>`;
   }).join('');
 
-  // Compensation cards HTML (custom IDs, dynamic)
-  const compEntries = _compEntries;
-  let compHtml = renderCompGrid(compEntries, locked);
+  // Compensation textareas HTML (one per drone)
+  let compHtml='';
+  for(let i=1;i<=droneQty;i++){
+    const key=`drone_${i}`;
+    compHtml+=`
+      <div class="comp-drone-card">
+        <div class="comp-drone-header">Dron #${i}</div>
+        <textarea class="comp-textarea" id="comp-${key}" placeholder="Ej:&#10;Roll: 0.00&#10;Pitch: 0.00&#10;Yaw: 0.00&#10;Accel X: 0.000…" ${locked?'disabled':''}>${compensation[key]||''}</textarea>
+      </div>`;
+  }
 
   document.getElementById('modal-body').innerHTML=`
     ${locked?'<div class="delivered-lock">🔒 Proyecto entregado — solo lectura</div>':''}
@@ -746,7 +742,7 @@ function renderModalForm(project) {
     <!-- COMPENSATION VALUES SECTION -->
     <div class="compensation-section">
       <div class="section-title green">Valores de Compensación</div>
-      <div class="compensation-grid" id="comp-grid">${compHtml}</div>
+      <div class="compensation-grid" id="comp-grid">${compHtml||`<div style="color:var(--text2);font-size:0.85rem;padding:8px 0;">Selecciona tipo y cantidad de drones para ver los campos de compensación.</div>`}</div>
     </div>
 
     <div class="comments-section">
@@ -826,79 +822,20 @@ function collectCompensation(){
   return result;
 }
 
-// ── Compensation: render helpers ──
-function renderCompGrid(entries, locked){
-  if(!entries.length){
-    return `<div class="comp-empty">Sin drones configurados en este proyecto.</div>`;
-  }
-  return entries.map((entry,i)=>`
-    <div class="comp-drone-card" data-comp-idx="${i}">
-      <div class="comp-drone-header">
-        <span style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--text2);flex-shrink:0;">ID:</span>
-        <input type="text" class="comp-drone-id-input" placeholder="Ej: 001, A-12, #5…" value="${escAttr(entry.droneId||'')}" ${locked?'disabled':''} oninput="syncCompId(${i},this.value)">
-      </div>
-      <textarea class="comp-textarea" placeholder="Ej:&#10;Roll: 0.00&#10;Pitch: 0.00&#10;Yaw: 0.00&#10;Accel X: 0.000…" ${locked?'disabled':''}>${escHtml(entry.values||'')}</textarea>
-    </div>`).join('');
-}
-
-function escAttr(t){ return String(t).replace(/"/g,'&quot;'); }
-
-// In-memory compensation list during editing
-let _compEntries = [];
-
-window.syncCompId = (idx, val) => {
-  if(_compEntries[idx]) _compEntries[idx].droneId = val;
-};
-
-function refreshCompGrid(locked){
+// ── Re-render compensation when qty changes ──
+function reRenderCompensation(droneQty, existingComp, locked){
   const grid=document.getElementById('comp-grid');
   if(!grid) return;
-  // Save current textarea values before re-render
-  _compEntries.forEach((e,i)=>{
-    const ta=grid.querySelector(`[data-comp-idx="${i}"] .comp-textarea`);
-    if(ta) e.values=ta.value;
-  });
-  grid.innerHTML=renderCompGrid(_compEntries,locked);
-}
-
-function collectCompensation(){
-  const grid=document.getElementById('comp-grid');
-  if(!grid) return [];
-  // Sync latest textarea values
-  _compEntries.forEach((e,i)=>{
-    const card=grid.querySelector(`[data-comp-idx="${i}"]`);
-    if(card){
-      const idInput=card.querySelector('.comp-drone-id-input');
-      const ta=card.querySelector('.comp-textarea');
-      if(idInput) e.droneId=idInput.value;
-      if(ta) e.values=ta.value;
-    }
-  });
-  return _compEntries.filter(e=>e.droneId||e.values);
-}
-
-// Reinitialize _compEntries when modal opens
-function initCompEntries(project){
-  const qty = project?.droneQty || 1;
-  const raw = project?.compensation;
-  if(Array.isArray(raw) && raw.length){
-    // Fill up to qty, keeping existing data
-    _compEntries = Array.from({length: qty}, (_,i) => ({
-      droneId: raw[i]?.droneId ?? '',
-      values:  raw[i]?.values  ?? ''
-    }));
-  } else if(raw && typeof raw==='object' && !Array.isArray(raw)){
-    // Migrate old format
-    const entries = Object.entries(raw).map(([k,v])=>({droneId:k.replace('drone_','Dron #'),values:v}));
-    _compEntries = Array.from({length: qty}, (_,i) => entries[i] || {droneId:'',values:''});
-  } else {
-    _compEntries = Array.from({length: qty}, () => ({droneId:'', values:''}));
+  let html='';
+  for(let i=1;i<=droneQty;i++){
+    const key=`drone_${i}`;
+    html+=`
+      <div class="comp-drone-card">
+        <div class="comp-drone-header">Dron #${i}</div>
+        <textarea class="comp-textarea" id="comp-${key}" placeholder="Ej:&#10;Roll: 0.00&#10;Pitch: 0.00&#10;Yaw: 0.00&#10;Accel X: 0.000…" ${locked?'disabled':''}>${existingComp[key]||''}</textarea>
+      </div>`;
   }
-}
-
-// ── Re-render compensation when qty changes (no longer auto-generates, just keeps existing) ──
-function reRenderCompensation(locked){
-  refreshCompGrid(locked);
+  grid.innerHTML=html;
 }
 
 function renderMaterials(droneType,droneQty,existing,locked){
@@ -933,6 +870,7 @@ window.onTypeChange=()=>{
   const qty=parseInt(document.getElementById('f-qty')?.value||1);
   if(type){
     renderMaterials(type,qty,collectMaterials(),false);
+    reRenderCompensation(qty,collectCompensation(),false);
   } else {
     document.getElementById('materials-section').style.display='none';
   }
@@ -941,14 +879,10 @@ window.onTypeChange=()=>{
 window.onQtyChange=()=>{
   const type=document.getElementById('f-type')?.value;
   const qty=parseInt(document.getElementById('f-qty')?.value||1);
-  // Resize _compEntries to match new qty (preserve existing, trim or pad)
-  if(qty > _compEntries.length){
-    while(_compEntries.length < qty) _compEntries.push({droneId:'',values:''});
-  } else if(qty < _compEntries.length){
-    _compEntries = _compEntries.slice(0, qty);
+  if(type){
+    renderMaterials(type,qty,collectMaterials(),false);
+    reRenderCompensation(qty,collectCompensation(),false);
   }
-  refreshCompGrid(false);
-  if(type) renderMaterials(type,qty,collectMaterials(),false);
 };
 
 function collectMaterials(){
@@ -1139,9 +1073,9 @@ function downloadPDFFromData(p) {
   y=doc.lastAutoTable.finalY+10; checkPage(20);
 
   // Compensation values
-  const compArr = Array.isArray(p.compensation) ? p.compensation : Object.entries(p.compensation||{}).map(([k,v])=>({droneId:k.replace('drone_','Dron #'),values:v}));
-  const compRows = compArr.filter(e=>e.droneId||e.values).map(e=>[e.droneId||'—',e.values||'']);
-  if(compRows.length){
+  if(p.compensation&&Object.keys(p.compensation).length>0){
+    const compRows=Object.entries(p.compensation).filter(([,v])=>v).map(([k,v])=>[k.replace('drone_','Dron #'),v]);
+    if(compRows.length){
       doc.setFontSize(12); doc.setFont('helvetica','bold'); doc.setTextColor(0,200,100);
       doc.text('Valores de Compensación',margin,y); y+=6;
       doc.autoTable({startY:y,head:[['Dron','Valores']],body:compRows,
@@ -1149,6 +1083,7 @@ function downloadPDFFromData(p) {
         styles:{fontSize:8,cellPadding:3},alternateRowStyles:{fillColor:[240,245,252]},
         columnStyles:{1:{cellWidth:'auto'}},margin:{left:margin,right:margin}});
       y=doc.lastAutoTable.finalY+10; checkPage(20);
+    }
   }
 
   if(p.comments&&p.comments.length){
