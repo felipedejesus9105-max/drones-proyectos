@@ -234,7 +234,7 @@ input:disabled,select:disabled,textarea:disabled{opacity:0.5;cursor:not-allowed;
 
 <div id="loading-screen">
   <div class="loader-ring"></div>
-  <div class="loader-text">Conectando con Firebase…</div>
+  <div class="loader-text">Conectando con Base de datos…</div>
 </div>
 
 <div id="toast"></div>
@@ -463,7 +463,7 @@ function toast(msg, type='info') {
 function setConn(state) {
   const dot = document.getElementById('conn-dot');
   const lbl = document.getElementById('conn-label');
-  if (state==='online')  { dot.className='conn-dot online'; lbl.textContent='Firebase — En línea'; }
+  if (state==='online')  { dot.className='conn-dot online'; lbl.textContent='Base de datos — En línea'; }
   else if (state==='error') { dot.className='conn-dot error'; lbl.textContent='Sin conexión'; }
   else { dot.className='conn-dot'; lbl.textContent='Conectando…'; }
 }
@@ -959,14 +959,14 @@ window.saveProject=async()=>{
         const updated={...p,id:fullId,name,droneType,droneQty,startDate,deliveryDate,materials,productionStages,compensation,updatedAt:new Date().toISOString()};
         await saveToFS(updated);
         if(fullId !== currentProjectId) await deleteFromFS(currentProjectId);
-        toast('Proyecto actualizado en Firebase.','success');
+        toast('Proyecto actualizado en Base de datos.','success');
       }
     } else {
       const np={id:fullId,name,droneType,droneQty,startDate,deliveryDate,materials,productionStages,compensation,delivered:false,
         comments:window._tempComments||[],createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
       window._tempComments=[];
       await saveToFS(np);
-      toast('Proyecto creado en Firebase.','success');
+      toast('Proyecto creado en Base de datos.','success');
     }
     closeModal();
   } catch(e){ /* toast already shown */ }
@@ -1124,11 +1124,11 @@ window.importBackup=async(event)=>{
     try{
       const data=JSON.parse(e.target.result);
       if(!data.projects||!Array.isArray(data.projects)){ toast('Archivo de respaldo inválido.','error'); return; }
-      if(!confirm(`¿Importar ${data.projects.length} proyectos a Firebase? Los que ya existan (mismo ID) serán omitidos.`)) return;
+      if(!confirm(`¿Importar ${data.projects.length} proyectos a Base de datos? Los que ya existan (mismo ID) serán omitidos.`)) return;
       const existingIds=new Set(projects.map(p=>p.id));
       let added=0;
       for(const p of data.projects){ if(!existingIds.has(p.id)){ await saveToFS(p); added++; } }
-      toast(`${added} proyectos importados a Firebase.`,'success');
+      toast(`${added} proyectos importados a Base de datos.`,'success');
     } catch{ toast('Error al leer el archivo.','error'); }
   };
   reader.readAsText(file);
@@ -1139,4 +1139,5 @@ window.importBackup=async(event)=>{
 document.getElementById('project-modal').addEventListener('click',function(e){ if(e.target===this) closeModal(); });
 </script>
 </body>
+
 </html>
